@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2.5em;
+        }
+
+        .form-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-edit {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .todos-container {
+            margin-top: 30px;
+        }
+
+        .todo-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .todo-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .todo-item.completed {
+            opacity: 0.7;
+            border-left-color: #28a745;
+        }
+
+        .todo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .todo-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .todo-item.completed .todo-title {
+            text-decoration: line-through;
+        }
+
+        .todo-description {
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .todo-meta {
+            font-size: 0.85em;
+            color: #999;
+            margin-bottom: 10px;
+        }
+
+        .todo-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .todo-actions button {
+            padding: 8px 20px;
+            font-size: 14px;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Todo App</h1>
+
+        <div id="message" class="message"></div>
+
+        <div class="form-container">
+            <form id="todoForm">
+                <div class="form-group">
+                    <label for="title">Título:</label>
+                    <input type="text" id="title" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Descripción:</label>
+                    <textarea id="description"></textarea>
+                </div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="completed">
+                        <label for="completed">Completado</label>
+                    </div>
+                </div>
+                <button type="submit" id="submitBtn">Agregar Todo</button>
+            </form>
+        </div>
+
+        <div class="todos-container">
+            <h2>Mis Todos</h2>
+            <div id="todosList"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración del backend
+        // Usa la misma URL del frontend ya que nginx hace el proxy
+        const API_BASE_URL = window.location.origin;
+
+        let editingId = null;
+
+        // Funciones de utilidad
+        function showMessage(text, type = 'success') {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type} show`;
+            setTimeout(() => {
+                messageEl.classList.remove('show');
+            }, 3000);
+        }
+
+        // CREATE
+        async function createTodo(todo) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/todos`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(todo),
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showMessage('Todo creado exitosamente');
+                    loadTodos();
+                    document.getElementById('todoForm').reset();
+                    editingId = null;
+                    document.getElementById('submitBtn').textContent = 'Agregar Todo';
+                } else {
+                    showMessage(result.message || 'Error al crear todo', 'error');
+                }
+            } catch (error) {
+                showMessage('Error de conexión: ' + error.message, 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        // READ
+        async function loadTodos() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/todos`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderTodos(result.data || []);
+                } else {
+                    showMessage('Error al cargar todos', 'error');
+                }
+            } catch (error) {
+                showMessage('Error de conexión: ' + error.message, 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        function renderTodos(todos) {
+            const todosList = document.getElementById('todosList');
+            
+            if (todos.length === 0) {
+                todosList.innerHTML = '<p style="text-align: center; color: #999;">No hay todos aún. ¡Agrega uno!</p>';
+                return;
+            }
+
+            todosList.innerHTML = todos.map(todo => `
+                <div class="todo-item ${todo.completed ? 'completed' : ''}">
+                    <div class="todo-header">
+                        <div class="todo-title">${escapeHtml(todo.title)}</div>
+                    </div>
+                    ${todo.description ? `<div class="todo-description">${escapeHtml(todo.description)}</div>` : ''}
+                    <div class="todo-meta">Creado: ${todo.created_at || 'N/A'}</div>
+                    <div class="todo-actions">
+                        <button class="btn-edit" onclick="editTodo(${todo.id}, '${escapeHtml(todo.title)}', '${escapeHtml(todo.description || '')}', ${todo.completed})">
+                            Editar
+                        </button>
+                        <button class="btn-danger" onclick="deleteTodo(${todo.id})">
+                            Eliminar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // UPDATE
+        async function updateTodo(id, todo) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/todos/update?id=${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(todo),
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showMessage('Todo actualizado exitosamente');
+                    loadTodos();
+                    document.getElementById('todoForm').reset();
+                    editingId = null;
+                    document.getElementById('submitBtn').textContent = 'Agregar Todo';
+                } else {
+                    showMessage(result.message || 'Error al actualizar todo', 'error');
+                }
+            } catch (error) {
+                showMessage('Error de conexión: ' + error.message, 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        function editTodo(id, title, description, completed) {
+            editingId = id;
+            document.getElementById('title').value = title;
+            document.getElementById('description').value = description;
+            document.getElementById('completed').checked = completed;
+            document.getElementById('submitBtn').textContent = 'Actualizar Todo';
+            document.getElementById('title').focus();
+        }
+
+        // DELETE
+        async function deleteTodo(id) {
+            if (!confirm('¿Estás seguro de que quieres eliminar este todo?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/todos/delete?id=${id}`, {
+                    method: 'DELETE',
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showMessage('Todo eliminado exitosamente');
+                    loadTodos();
+                } else {
+                    showMessage(result.message || 'Error al eliminar todo', 'error');
+                }
+            } catch (error) {
+                showMessage('Error de conexión: ' + error.message, 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('todoForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const todo = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                completed: document.getElementById('completed').checked,
+            };
+
+            if (editingId) {
+                updateTodo(editingId, todo);
+            } else {
+                createTodo(todo);
+            }
+        });
+
+        // Cargar todos al inicio
+        loadTodos();
+    </script>
+</body>
+</html>
+
