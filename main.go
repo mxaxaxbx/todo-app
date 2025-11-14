@@ -225,6 +225,6 @@ func main() {
 		deleteTodo(w, r)
 	})
 
-	fmt.Println("Server running on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	fmt.Println("Server running on :9090")
+	log.Fatal(http.ListenAndServe(":9090", nil))
 }

@@ -28,7 +28,7 @@ docker-compose up -d --build
 ### Acceso
 
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8080 (directo) o http://localhost:3000/api (a través de nginx)
+- **Backend API**: http://localhost:9090 (directo) o http://localhost:3000/api (a través de nginx)
 
 ### API Endpoints
 
