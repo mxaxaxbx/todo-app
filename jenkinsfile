@@ -1,0 +1,43 @@
+pipeline {
+  agent any
+
+  stages {
+
+    stage('Prepare folder') {
+      steps {
+        sh '''
+          mkdir -p "$HOME/projects"
+        '''
+      }
+    }
+
+    stage('Clone into projects folder') {
+      steps {
+        sh '''
+          cd "$HOME/projects"
+
+          # If folder exists, delete it to avoid conflicts
+          if [ -d "todo-app" ]; then
+            rm -rf todo-app
+          fi
+
+          git clone -b main https://github.com/mxaxaxbx/todo-app.git
+        '''
+      }
+    }
+
+    stage('Build') {
+      steps {
+        sh '''
+          cd "$HOME/projects/todo-app"
+
+          docker compose down --remove-orphans || true
+          docker rm -f todo-backend todo-frontend || true
+
+          docker compose up --build -d
+        '''
+      }
+    }
+
+  }
+}
