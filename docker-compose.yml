@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.backend
     container_name: todo-backend
     ports:
-      - "9090:9090"
+      - "9091:9090"
     volumes:
       - ./data:/app/data
     environment:
