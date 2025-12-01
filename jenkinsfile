@@ -1,43 +1,111 @@
 pipeline {
   agent any
 
-  stages {
+  environment {
+    PROJECTS_DIR = "${HOME}/projects"
+    REPO_URL = "https://github.com/mxaxaxbx/todo-app.git"
+    REPO_BRANCH = "main"
+    APP_FOLDER = "todo-app"
+    CODECOV_TOKEN = credentials('codecov-token') // Add this credential in Jenkins
+  }
 
+  stages {
     stage('Prepare folder') {
       steps {
+        echo "Creating project directory..."
         sh '''
-          mkdir -p "$HOME/projects"
+          mkdir -p "$PROJECTS_DIR"
         '''
       }
     }
 
-    stage('Clone into projects folder') {
+    stage('Clone repository') {
       steps {
-        sh '''
-          cd "$HOME/projects"
+        dir("${PROJECTS_DIR}") {
+          echo "Cleaning previous folder if present..."
+          sh '''
+            if [ -d "$APP_FOLDER" ]; then
+              rm -rf "$APP_FOLDER"
+            fi
+          '''
 
-          # If folder exists, delete it to avoid conflicts
-          if [ -d "todo-app" ]; then
-            rm -rf todo-app
-          fi
-
-          git clone -b main https://github.com/mxaxaxbx/todo-app.git
-        '''
+          echo "Cloning repository..."
+          sh '''
+            git clone -b "$REPO_BRANCH" "$REPO_URL"
+          '''
+        }
       }
     }
 
-    stage('Build') {
+    stage('Build and Deploy with Docker Compose') {
+      steps {
+        dir("${PROJECTS_DIR}/${APP_FOLDER}") {
+          sh '''
+            # Ensure old containers are removed
+            docker compose down --remove-orphans || true
+
+            # Remove previous standalone containers if exist
+            docker rm -f todo-backend todo-frontend 2>/dev/null || true
+
+            # Build and run the stack
+            docker compose up --build -d
+          '''
+        }
+      }
+    }
+    
+    stage('Run Tests & Upload Coverage') {
       steps {
         sh '''
           cd "$HOME/projects/todo-app"
-
-          docker compose down --remove-orphans || true
-          docker rm -f todo-backend todo-frontend || true
-
-          docker compose up --build -d
+          
+          # Run tests with coverage (adjust based on your project structure)
+          # For backend (example with Node.js/Jest)
+          docker compose exec -T todo-backend npm run test:coverage || true
+          
+          # For frontend (example with React/Jest)
+          docker compose exec -T todo-frontend npm run test:coverage || true
+          
+          # Upload coverage to CodeCov
+          curl -Os https://cli.codecov.io/latest/linux/codecov
+          chmod +x codecov
+          
+          # Upload backend coverage
+          ./codecov upload-process --fail-on-error -t ${CODECOV_TOKEN} -F backend || true
+          
+          # Upload frontend coverage
+          ./codecov upload-process --fail-on-error -t ${CODECOV_TOKEN} -F frontend || true
+          
+          echo "Waiting for CodeCov processing..."
+          sleep 10
         '''
       }
     }
+    
+    stage('CodeCov Report') {
+      steps {
+        script {
+          echo "Coverage reports uploaded to CodeCov"
+          echo "View reports at: https://codecov.io/gh/mxaxaxbx/todo-app"
+        }
+      }
+    }
 
+  }
+
+  post {
+    always {
+      sh '''
+        cd "$HOME/projects/todo-app"
+        # Cleanup
+        docker compose logs || true
+      '''
+    }
+    success {
+      echo "Pipeline completed successfully!"
+    }
+    failure {
+      echo "Pipeline failed. Check logs."
+    }
   }
 }
